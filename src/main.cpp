@@ -203,7 +203,7 @@ int main() {
   //have a reference velocity close to speed limit
   double ref_vel = 49.5; //mph
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -242,8 +242,8 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+          	//vector<double> next_x_vals;
+          	//vector<double> next_y_vals;
 
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
@@ -314,6 +314,58 @@ int main() {
 
             	ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
             	ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
+            }
+
+            // create a spline
+            tk::spline s;
+
+            // set (x,y) points to the spline
+            s.set_points(ptsx, ptsy);
+
+            // define the actual (x,y) points we will use for the planner
+            vector<double> next_x_vals;
+            vector<double> next_y_vals;
+
+            // start with all the previous path points from the last time
+            for (int i = 0; i < previous_path_x.size(); i++){
+            	next_x_vals.push_back(previous_path_x[i]);
+            	next_y_vals.push_back(previous_path_y[i]);
+            }
+
+            // calculate how to break up spline points so that we travel at our desired reference velocity
+            double target_x = 30.0; // horizon of 30 meters, at target speed 25 m/s a car would need
+            						// more than 1s to reach this point. 0.02s * 50 points = 1s,
+            						// i.e. if we generate 50 points they will only reach up to
+            						// 25 meters ahead (at target speed) or less (at speed < target speed)
+            double target_y = s(target_x);
+            double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y));
+
+            double x_add_on = 0; //starting point in car's coordinate system
+
+            // fill up the rest of our path planner after filling it with previous points,
+            // here we will always output 50 points
+
+            for (int i = 1; i <= 50 - previous_path_x.size(); i++){
+
+            	double N = (target_dist/(.02*ref_vel/2.24)); // divided by 2.24 to convert from mph to kmh
+            	double x_point = x_add_on + (target_x)/N;
+            	double y_point = s(x_point);
+
+            	x_add_on = x_point;
+
+            	double x_ref = x_point;
+            	double y_ref = y_point;
+
+            	// rotate back to map coordinates after rotating to car's coordinates earlier
+            	x_point = (x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw));
+            	y_point = (x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw));
+
+            	// set the points in relation to reference position
+            	x_point += ref_x;
+            	y_point += ref_y;
+
+            	next_x_vals.push_back(x_point);
+            	next_y_vals.push_back(y_point);
             }
 
           	//staying in the lane:
