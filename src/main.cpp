@@ -279,9 +279,123 @@ int main() {
           				//ref_vel = 29.5; // mph
           				too_close = true;
           				//change blindly to the left lane if there is a car ahead.
-          				if (lane > 0){
+          				/*if (lane > 0){
           					lane = 0;
           				}
+          				*/
+
+          				// ********* BEHAVIOR PLANNER ******
+
+          				// 1. My FSM states will simply be target lanes, i.e. 0, 1, 2
+
+          				// 2. Calculate cost for each FSM state (each lane)
+          				vector<double> costs = {0.0, 0.0, 0.0};
+          				vector<double> speed_penalty = {0.0, 0.0, 0.0};
+          				double collision_penalty;
+          				double total_lane_cost;
+
+          				for (int i = 0; i < sensor_fusion.size(); i++){
+          					d = sensor_fusion[i][6];
+          					vx = sensor_fusion[i][3];
+          					vy = sensor_fusion[i][4];
+          					check_speed = sqrt(vx*vx+vy*vy);
+          					check_car_s = sensor_fusion[i][5];
+
+          					check_car_s += ((double)prev_size*.02*check_speed);
+
+          					// check for cars within 30 meters in front and behind the car
+          					if ( ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+          							|| ((check_car_s < car_s) && ((check_car_s - car_s) > -30)) ){
+          						// set collision penalty
+          						if (d < 4 && d > 0){
+          							// do not set collision penalty for the lane our car is in
+          							if (!(d < (2+4*lane+2) && d > (2+4*lane-2))){
+          								collision_penalty = 999.0;
+          								costs[0] += collision_penalty;
+          								cout << "collision in lane 0 detected" << endl;
+          								cout << "costs[0] = " << costs[0] << endl;
+          							}
+          							else {
+          								collision_penalty = 99.0;
+          								costs[0] += collision_penalty;
+          								cout << "collision in lane 0 detected" << endl;
+          								cout << "costs[0] = " << costs[0] << endl;
+          							}
+          						}
+          						if (d < 8 && d > 4){
+          						    if (!(d < (2+4*lane+2) && d > (2+4*lane-2))){
+          						    	collision_penalty = 999.0;
+          						    	costs[1] += collision_penalty;
+          						    	cout << "collision in lane 1 detected" << endl;
+          						    	cout << "costs[1] = " << costs[1] << endl;
+          						    }
+          						    else {
+          								collision_penalty = 99.0;
+          								costs[1] += collision_penalty;
+          								cout << "collision in lane 1 detected" << endl;
+          								cout << "costs[1] = " << costs[1] << endl;
+          							}
+          						}
+          						if (d < 12 && d > 8){
+          						    if (!(d < (2+4*lane+2) && d > (2+4*lane-2))){
+          						    	collision_penalty = 999.0;
+          						    	costs[2] += collision_penalty;
+          						    	cout << "collision in lane 2 detected" << endl;
+          						    	cout << "costs[2] = " << costs[2] << endl;
+          						    }
+          						    else {
+          								collision_penalty = 99.0;
+          								costs[2] += collision_penalty;
+          								cout << "collision in lane 2 detected" << endl;
+          								cout << "costs[2] = " << costs[2] << endl;
+          							}
+          						}
+          					}
+          				}
+
+          				/*
+          				for (int i = 0; i < 3; i++){
+          					speed_penalty = 0.0; //to be implemented
+          					collision_penalty = 0.0; //to be implemented
+          					total_lane_cost = speed_penalty + collision_penalty;
+          					costs.push_back(total_lane_cost);
+          				}
+          				*/
+
+          				//consider only neighboring lanes
+          				/*
+          				if (lane == 0){
+          					costs.pop_back();
+          				}
+          				if (lane == 2){
+          					costs.erase(costs.begin());
+          				}
+          				*/
+
+          				for (int i = 0; i < costs.size(); i++) {
+          					cout << "costs[" << i << "] = " << costs[i] << endl;
+          				}
+
+          				//choose lane with lowest cost - only from neighboring lanes
+          				if (lane == 0){
+          					vector<double>::iterator best_cost = min_element(begin(costs), end(costs)-1);
+          					int best_idx = distance(begin(costs), best_cost);
+          					lane = best_idx;
+          				}
+          				if (lane == 1){
+          				    vector<double>::iterator best_cost = min_element(begin(costs), end(costs));
+          				    int best_idx = distance(begin(costs), best_cost);
+          				    lane = best_idx;
+          				}
+          				if (lane == 2){
+          				    vector<double>::iterator best_cost = min_element(begin(costs)+1, end(costs));
+          				    int best_idx = distance(begin(costs), best_cost);
+          				    lane = best_idx;
+          				}
+          				cout << "selected lane #:" << lane << endl;
+          				cout << endl;
+
+          				// ********* EO BEH. PLANNER ******
 /*
  * The above needs to be improved in the following way:
  * We need to look at other cars in the lane we want to change into first
@@ -346,12 +460,14 @@ int main() {
           		}
           	}
 
+          	/*
           	if(too_close){
-          		ref_vel -= .224; //.224 equals roughly to acceleration 0f 5m/s2
+          		ref_vel -= .224; //.224 equals roughly to acceleration of 5m/s2
           	}
           	else if (ref_vel < 49.5){
           		ref_vel += .224;
           	}
+          	*/
 
           		// note: the above code will adjust the velocity every cycle
           		// we could be more efficient and adjust the velocity between every path point
@@ -451,7 +567,14 @@ int main() {
 
             for (int i = 1; i <= 50 - previous_path_x.size(); i++){
 
-            	//We should be adding / subtracting ref_vel in this loop
+            	// we should be adding / subtracting ref_vel in this loop
+            	// let's try it
+            	if(too_close){
+            		ref_vel -= .224; //.224 equals roughly to acceleration of 5m/s2
+            	}
+            	else if (ref_vel < 49.5){
+            		ref_vel += .224;
+            	}
 
             	double N = (target_dist/(.02*ref_vel/2.24)); // divided by 2.24 to convert from mph to kmh
             	double x_point = x_add_on + (target_x)/N;
