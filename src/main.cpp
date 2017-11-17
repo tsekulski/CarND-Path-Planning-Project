@@ -201,7 +201,7 @@ int main() {
   int lane = 1;
 
   //have a reference velocity close to speed limit
-  double ref_vel = 49.5; //mph
+  double ref_vel = 0.0; //mph
 
   h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -252,6 +252,88 @@ int main() {
           		// previous path (list of xy points) size
             	// be careful not to repeat this variable below again
           	int prev_size = previous_path_x.size();
+
+          		// check for collisions
+          	if (prev_size > 0){
+          		car_s = end_path_s; //car's "future" position at the end of previous path
+          	}
+
+          	bool too_close = false;
+
+          		// find ref_v to use
+          	for (int i = 0; i < sensor_fusion.size(); i++){
+          		//car is in my lane
+          		float d = sensor_fusion[i][6];
+          		if (d < (2+4*lane+2) && d > (2+4*lane-2)){
+          			double vx = sensor_fusion[i][3];
+          			double vy = sensor_fusion[i][4];
+          			double check_speed = sqrt(vx*vx+vy*vy);
+          			double check_car_s = sensor_fusion[i][5];
+
+          			check_car_s += ((double)prev_size*.02*check_speed); //if using previous points can project s value outwards in time
+
+          			//check s values greater than mine and s gap is smaller than 30 meters (arbitrary value)
+          			if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)){
+          				// do some logic here, e.g. lower ref velocity so we don't crash into the car in front of us,
+          				// could also set the flag to try to change lanes
+          				//ref_vel = 29.5; // mph
+          				too_close = true;
+          				//change blindly to the left lane if there is a car ahead.
+          				if (lane > 0){
+          					lane = 0;
+          				}
+/*
+ * The above needs to be improved in the following way:
+ * We need to look at other cars in the lane we want to change into first
+ * using similar logic to to seeing if there is a car in front of us or not
+ * Going back to Frenet, we can check if there is a car in that lane
+ * and then we can check if it's in some gap range of s. If it is,
+ * then it's not safe to do that lane change. And then maybe if it's not safe to go left,
+ * we can try to go right instead.
+ * You would have three states to choose from: keep lane, change lane left, change lane right
+ * and e.g. you would never change lane left if you saw there was another car within like 30,
+ * or maybe 100 meters in front of you or 50 or so meters behind you.
+ * And if you're already in that leftmost lane, you don't want to go off the road.
+ * So we need a logic when to shift into each of those states in the FSM.
+ * We need a better FSM and a good cost function.
+ * Try to look into the future and see what's the best lane to be in 5 seconds or so.
+ *
+ * Recommended flow of project work:
+ * 1. Get the car moving
+ * 2. Get the car to keep its lane
+ * 3. Smooth its path (i.e. no jerk when changing lanes (e.g. with spline)
+ * 4. Then you enter the world which looks like the quiz at the end of behavioral planning lesson
+ * 	  where probably the best way to deal with it is to have a cost function to decide between maneuvers/lanes
+ * 	  The cost function should take into account the cost of being in each lane and choose lowest
+ * 5. Predict where the cars will be in the future and what your cost is going to be for being in
+ * 	  different states and different lanes in the future. You could use a NB Classifier for that
+ * 	  - (but there is no off-the-shelf historical data to train the classifier...)
+ *
+ * 	  Flow would be:
+ * 	  - get the data
+ * 	  - try to predict where cars will be in the future
+ * 	  - make your own decisions in behavior planning
+ * 	  - and then ultimately you generate a trajectory
+ * 	  For this project you might work backwards:
+ * 	  - build a trajectory and assume no other vehicles are around
+ * 	  - start to assume other vehicles are there and build a behavior planner, but don't worry about the future
+ * 	  - finally, start predicting where other vehicles will be in the future
+ * 	  */
+
+          			}
+          		}
+          	}
+
+          	if(too_close){
+          		ref_vel -= .224; //.224 equals roughly to acceleration 0f 5m/s2
+          	}
+          	else if (ref_vel < 49.5){
+          		ref_vel += .224;
+          	}
+
+          		// note: the above code will adjust the velocity every cycle
+          		// we could be more efficient and adjust the velocity between every path point
+          		// down in the path planner
 
           		// create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
           		// later we will interpolate these waypoints with a spline and fill it in with more points
@@ -346,6 +428,8 @@ int main() {
             // here we will always output 50 points
 
             for (int i = 1; i <= 50 - previous_path_x.size(); i++){
+
+            	//We should be adding / subtracting ref_vel in this loop
 
             	double N = (target_dist/(.02*ref_vel/2.24)); // divided by 2.24 to convert from mph to kmh
             	double x_point = x_add_on + (target_x)/N;
