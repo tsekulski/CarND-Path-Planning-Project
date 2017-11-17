@@ -298,6 +298,9 @@ int main() {
  * We need a better FSM and a good cost function.
  * Try to look into the future and see what's the best lane to be in 5 seconds or so.
  *
+ * Note to self: I think instead of KL, LCL, LCR, it's better to have states which represent
+ * target lane - since we have just three target lanes. The I won't have to bother about leaving the road, etc.
+ *
  * Recommended flow of project work:
  * 1. Get the car moving
  * 2. Get the car to keep its lane
@@ -318,6 +321,25 @@ int main() {
  * 	  - build a trajectory and assume no other vehicles are around
  * 	  - start to assume other vehicles are there and build a behavior planner, but don't worry about the future
  * 	  - finally, start predicting where other vehicles will be in the future
+ *
+ * 	  Cost function design:
+ * 	  - Always calculate cost for all three lanes
+ * 	  - Output the lowest one, i.e. target lane
+ * 	  - Two key cost components: target speed + lateral collision avoidance (those two should do the trick)
+ * 	  - Inputs: Vehicle positions & speeds
+ * 	    (current, i.e. gap for a lane change will need to be high to avoid collision)
+ * 	    (when prediction is added, then the gap can be narrower)
+ *
+ * 	  Prediction:
+ * 	  - Simple prediction assuming the other car is going to continue on its current path
+ * 	  - Option a: just extrapolate along current lane
+ * 	  - Option b: extrapolate along car's heading (might be tricky in curves and depend on time horizon)
+ * 	  - Option c: collect data from the simulator and train a NB Classifier (seems like a lot of effort)
+ * 	  - I'll start with option a and see if it's enough.
+ * 	  - Food for thought: if another car started changing his lane, we should be able to see that he is not in the middle of the lane
+ * 	  - and then we can assume that he is probably going into another lane.
+ * 	  - Maybe a function which assigns either one or two potential lanes to the other car would do the trick
+ *
  * 	  */
 
           			}
