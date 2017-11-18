@@ -1,0 +1,61 @@
+/*
+ * PATH PLANNING PROJECT - PREPARATORY NOTES
+
+ * The above needs to be improved in the following way:
+ * We need to look at other cars in the lane we want to change into first
+ * using similar logic to to seeing if there is a car in front of us or not
+ * Going back to Frenet, we can check if there is a car in that lane
+ * and then we can check if it's in some gap range of s. If it is,
+ * then it's not safe to do that lane change. And then maybe if it's not safe to go left,
+ * we can try to go right instead.
+ * You would have three states to choose from: keep lane, change lane left, change lane right
+ * and e.g. you would never change lane left if you saw there was another car within like 30,
+ * or maybe 100 meters in front of you or 50 or so meters behind you.
+ * And if you're already in that leftmost lane, you don't want to go off the road.
+ * So we need a logic when to shift into each of those states in the FSM.
+ * We need a better FSM and a good cost function.
+ * Try to look into the future and see what's the best lane to be in 5 seconds or so.
+ *
+ * Note to self: I think instead of KL, LCL, LCR, it's better to have states which represent
+ * target lane - since we have just three target lanes. The I won't have to bother about leaving the road, etc.
+ *
+ * Recommended flow of project work:
+ * 1. Get the car moving
+ * 2. Get the car to keep its lane
+ * 3. Smooth its path (i.e. no jerk when changing lanes (e.g. with spline)
+ * 4. Then you enter the world which looks like the quiz at the end of behavioral planning lesson
+ * 	  where probably the best way to deal with it is to have a cost function to decide between maneuvers/lanes
+ * 	  The cost function should take into account the cost of being in each lane and choose lowest
+ * 5. Predict where the cars will be in the future and what your cost is going to be for being in
+ * 	  different states and different lanes in the future. You could use a NB Classifier for that
+ * 	  - (but there is no off-the-shelf historical data to train the classifier...)
+ *
+ * 	  Flow would be:
+ * 	  - get the data
+ * 	  - try to predict where cars will be in the future
+ * 	  - make your own decisions in behavior planning
+ * 	  - and then ultimately you generate a trajectory
+ * 	  For this project you might work backwards:
+ * 	  - build a trajectory and assume no other vehicles are around
+ * 	  - start to assume other vehicles are there and build a behavior planner, but don't worry about the future
+ * 	  - finally, start predicting where other vehicles will be in the future
+ *
+ * 	  Cost function design:
+ * 	  - Always calculate cost for all three lanes
+ * 	  - Output the lowest one, i.e. target lane
+ * 	  - Two key cost components: target speed + lateral collision avoidance (those two should do the trick)
+ * 	  - Inputs: Vehicle positions & speeds
+ * 	    (current, i.e. gap for a lane change will need to be high to avoid collision)
+ * 	    (when prediction is added, then the gap can be narrower)
+ *
+ * 	  Prediction:
+ * 	  - Simple prediction assuming the other car is going to continue on its current path
+ * 	  - Option a: just extrapolate along current lane
+ * 	  - Option b: extrapolate along car's heading (might be tricky in curves and depend on time horizon)
+ * 	  - Option c: collect data from the simulator and train a NB Classifier (seems like a lot of effort)
+ * 	  - I'll start with option a and see if it's enough.
+ * 	  - Food for thought: if another car started changing his lane, we should be able to see that he is not in the middle of the lane
+ * 	  - and then we can assume that he is probably going into another lane.
+ * 	  - Maybe a function which assigns either one or two potential lanes to the other car would do the trick
+ *
+ * 	  */
