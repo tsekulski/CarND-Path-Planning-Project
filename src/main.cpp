@@ -258,7 +258,7 @@ int main() {
 
           	int prev_size = previous_path_x.size();
 
-          	// check for collisions
+          	// predict ego car's future position
           	if (prev_size > 0){
           		car_s = end_path_s; //car's "future" position at the end of previous path
           	}
@@ -308,8 +308,8 @@ int main() {
 
           					check_car_s += ((double)prev_size*.02*check_speed);
 
-          					// speed penalty - check cars within 30 meters ahead
-          					if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)){
+          					// speed penalty - check cars within 50 meters ahead
+          					if ((check_car_s > car_s) && ((check_car_s - car_s) < 50)){
           						speed_penalty = 99.0*((49.5 - check_speed_mph) / 49.5);
           						// lane 0
           						if (d < 4 && d > 0){
@@ -333,9 +333,9 @@ int main() {
           					}
 
           					// collision detection & penalty
-          					// check for cars within 15 meters in front and 5 behind the car
+          					// check for cars within 15 meters in front and 7 behind the car
           					if ( ((check_car_s > car_s) && ((check_car_s - car_s) < 15))
-          							|| ((check_car_s < car_s) && ((check_car_s - car_s) > - 5)) ){
+          							|| ((check_car_s < car_s) && ((check_car_s - car_s) > - 7)) ){
           						// set collision penalty
           						collision_penalty = 999.0;
           						if (d < 4 && d > 0){
@@ -521,17 +521,17 @@ int main() {
 
             for (int i = 1; i <= 50 - previous_path_x.size(); i++){
 
-            	// adding / subtracting ref_vel in this loop tp avoid crashing into the car ahead
+            	// adding / subtracting ref_vel in this loop to avoid crashing into the car ahead
             	if(too_close){
             		// slow down, but only slightly below the speed of the vehicle ahead
             		if (ref_vel > (check_speed_mph - .224)){ //deduct .224 to make sure car slows down also after lane change
-            			ref_vel -= .112; //.112 mph equals roughly to 0.05 m/s
+            			ref_vel -= .112; //.112 mph equals roughly 0.05 m/s
             			            	//0.05 m/s / 0.02s interval = 2.5 m/s2 (acceleration)
             		}
 
             	}
             	else if (ref_vel < 49.5){
-            		ref_vel += .224;
+            		ref_vel += .112;
             	}
 
             	double N = (target_dist/(.02*ref_vel/2.24)); // divided by 2.24 to convert from mph to m/s
