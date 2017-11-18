@@ -203,7 +203,10 @@ int main() {
   //have a reference velocity close to speed limit
   double ref_vel = 0.0; //mph
 
-  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  // track when the lane was changed last time - to avoid changing across two lanes too fast
+  int last_lane_change = 10;
+
+  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane,&last_lane_change](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -390,22 +393,36 @@ int main() {
           					cout << "total cost for lane " << i << " = " << costs[i] << endl;
           				}
 
-          				//choose lane with lowest cost - only from neighboring lanes
-          				if (lane == 0){
-          					vector<double>::iterator best_cost = min_element(begin(costs), end(costs)-1);
-          					int best_idx = distance(begin(costs), best_cost);
-          					lane = best_idx;
+          				//choose lane with lowest cost
+          				vector<double>::iterator best_cost = min_element(begin(costs), end(costs));
+          				int best_idx = distance(begin(costs), best_cost);
+
+          				// lane selection logic
+          				// change lane only if there have been at least 10 cycles since last lane change
+          				if (last_lane_change > 10){
+          					if (lane == 0 && best_idx == 2){
+          						if (collision_penalty_lane1 == 0){
+          							lane = 1;
+          							cout << "going to middle lane as a preparatory step" << endl;
+          							last_lane_change = 0;
+          						}
+          					}
+          					else if (lane == 2 && best_idx == 0){
+          						if (collision_penalty_lane1 == 0){
+          							lane = 1;
+          							cout << "going to middle lane as a preparatory step" << endl;
+          							last_lane_change = 0;
+          						}
+          					}
+          					else {
+          						if (lane != best_idx){
+          							last_lane_change = 0;
+          						}
+          						lane = best_idx;
+          					}
           				}
-          				if (lane == 1){
-          				    vector<double>::iterator best_cost = min_element(begin(costs), end(costs));
-          				    int best_idx = distance(begin(costs), best_cost);
-          				    lane = best_idx;
-          				}
-          				if (lane == 2){
-          				    vector<double>::iterator best_cost = min_element(begin(costs)+1, end(costs));
-          				    int best_idx = distance(begin(costs), best_cost);
-          				    lane = best_idx;
-          				}
+          				last_lane_change += 1;
+
           				cout << "selected lane #:" << lane << endl;
           				cout << endl;
 
@@ -586,8 +603,8 @@ int main() {
             	if(too_close){
             		// slow down only slightly below the speed of the vehicle ahead
             		if (ref_vel > (check_speed_mph - .224)){ //deduct .224 to make sure car slows down also after lane change
-            			ref_vel -= .224; //.224 mph equals roughly to 0.1 m/s
-            			            	//0.1 m/s / 0.02s interval = 5 m/s2 (acceleration)
+            			ref_vel -= .112; //.112 mph equals roughly to 0.05 m/s
+            			            	//0.05 m/s / 0.02s interval = 2.5 m/s2 (acceleration)
             		}
 
             	}
