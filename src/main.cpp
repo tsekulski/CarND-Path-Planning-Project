@@ -259,6 +259,7 @@ int main() {
           	}
 
           	bool too_close = false;
+          	double check_speed_mph = ref_vel;
 
           		// find ref_v to use
           	for (int i = 0; i < sensor_fusion.size(); i++){
@@ -278,6 +279,7 @@ int main() {
           				// could also set the flag to try to change lanes
           				//ref_vel = 29.5; // mph
           				too_close = true;
+          				check_speed_mph = check_speed * 2.24; // set ref speed for slowing down & convert from m/s to mph
           				//change blindly to the left lane if there is a car ahead.
           				/*if (lane > 0){
           					lane = 0;
@@ -303,9 +305,9 @@ int main() {
 
           					check_car_s += ((double)prev_size*.02*check_speed);
 
-          					// check for cars within 30 meters in front and behind the car
-          					if ( ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
-          							|| ((check_car_s < car_s) && ((check_car_s - car_s) > -30)) ){
+          					// check for cars within 5 meters in front and 5 behind the car
+          					if ( ((check_car_s > car_s) && ((check_car_s - car_s) < 5))
+          							|| ((check_car_s < car_s) && ((check_car_s - car_s) > -5)) ){
           						// set collision penalty
           						if (d < 4 && d > 0){
           							// do not set collision penalty for the lane our car is in
@@ -570,13 +572,18 @@ int main() {
             	// we should be adding / subtracting ref_vel in this loop
             	// let's try it
             	if(too_close){
-            		ref_vel -= .224; //.224 equals roughly to acceleration of 5m/s2
+            		// don't slow down below the speed of the vehicle ahead
+            		if (check_speed_mph < ref_vel){
+            			ref_vel -= .224; //.224 mph equals roughly to 0.1 m/s
+            			            	//0.1 m/s / 0.02s interval = 5 m/s2 (acceleration)
+            		}
+
             	}
             	else if (ref_vel < 49.5){
             		ref_vel += .224;
             	}
 
-            	double N = (target_dist/(.02*ref_vel/2.24)); // divided by 2.24 to convert from mph to kmh
+            	double N = (target_dist/(.02*ref_vel/2.24)); // divided by 2.24 to convert from mph to m/s
             	double x_point = x_add_on + (target_x)/N;
             	double y_point = s(x_point);
 
