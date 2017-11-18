@@ -39,7 +39,7 @@ Requirement: The car does not exceed a total acceleration of 10 m/s^2 and a jerk
 
 * This is achieved by setting speed decrease / increase between two path points at a maximum of +/- 0.112 mph, which corresponds roughly to 0.05 m/s, which in turn - assuming that car passes two points in 0.02s - corresponds to max acceleration/deccelaration of 0.05 m/s / 0.02s = 2.5m/s2 (see lines 528 and 534). This is a rather conservative approach, but it works well for the project.
 
-#### Car does not have collisions.
+### Car does not have collisions.
 Requirement: The car must not come into contact with any of the other cars on the road.
 
 * This is achieved by collision penalty cost, which is assigned if there is a vehicle in the lane between 15 meters ahead and 7 meters behind the car (see lines 335 - 364).
