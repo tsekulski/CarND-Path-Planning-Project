@@ -292,9 +292,9 @@ int main() {
 
           				// 2. Calculate cost for each FSM state (each lane)
           				vector<double> costs = {0.0, 0.0, 0.0};
-          				vector<double> speed_penalty = {0.0, 0.0, 0.0};
-          				double collision_penalty;
-          				double total_lane_cost;
+          				double speed_penalty; // not yet implemented
+          				double lane_change_opportunities; // not yet implemented
+          				double collision_penalty; // implemented
 
           				for (int i = 0; i < sensor_fusion.size(); i++){
           					d = sensor_fusion[i][6];
@@ -305,8 +305,29 @@ int main() {
 
           					check_car_s += ((double)prev_size*.02*check_speed);
 
-          					// check for cars within 5 meters in front and 5 behind the car
-          					if ( ((check_car_s > car_s) && ((check_car_s - car_s) < 5))
+          					// speed penalty - check cars within 30 meters ahead
+          					if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)){
+          						speed_penalty = 99.0*((49.5 - check_speed_mph) / 49.5);
+          						// lane 0
+          						if (d < 4 && d > 0){
+          							costs[0] += speed_penalty;
+          							cout << "speed penalty lane 0 = " << speed_penalty << endl;
+          						}
+          						// lane 1
+          						if (d < 8 && d > 4){
+          						    costs[1] += speed_penalty;
+          						    cout << "speed penalty lane 1 = " << speed_penalty << endl;
+          						}
+          						// lane 2
+          						if (d < 12 && d > 8){
+          						    costs[2] += speed_penalty;
+          						    cout << "speed penalty lane 2 = " << speed_penalty << endl;
+          						}
+          					}
+
+          					// collision detection & penalty
+          					// check for cars within 10 meters in front and 5 behind the car
+          					if ( ((check_car_s > car_s) && ((check_car_s - car_s) < 10))
           							|| ((check_car_s < car_s) && ((check_car_s - car_s) > -5)) ){
           						// set collision penalty
           						if (d < 4 && d > 0){
@@ -318,7 +339,7 @@ int main() {
           								cout << "costs[0] = " << costs[0] << endl;
           							}
           							else {
-          								collision_penalty = 99.0;
+          								collision_penalty = 999.0;
           								costs[0] += collision_penalty;
           								cout << "collision in lane 0 detected" << endl;
           								cout << "costs[0] = " << costs[0] << endl;
@@ -332,7 +353,7 @@ int main() {
           						    	cout << "costs[1] = " << costs[1] << endl;
           						    }
           						    else {
-          								collision_penalty = 99.0;
+          								collision_penalty = 999.0;
           								costs[1] += collision_penalty;
           								cout << "collision in lane 1 detected" << endl;
           								cout << "costs[1] = " << costs[1] << endl;
@@ -346,7 +367,7 @@ int main() {
           						    	cout << "costs[2] = " << costs[2] << endl;
           						    }
           						    else {
-          								collision_penalty = 99.0;
+          								collision_penalty = 999.0;
           								costs[2] += collision_penalty;
           								cout << "collision in lane 2 detected" << endl;
           								cout << "costs[2] = " << costs[2] << endl;
@@ -354,6 +375,14 @@ int main() {
           						}
           					}
           				}
+
+          				// lane changing opportunities
+          			    // all else equal, it's better to be in the middle lane
+          				// than in the left or right lane
+          				lane_change_opportunities = 1.0;
+          				costs[0] += lane_change_opportunities;
+          				costs[2] += lane_change_opportunities;
+
 
           				/*
           				for (int i = 0; i < 3; i++){
